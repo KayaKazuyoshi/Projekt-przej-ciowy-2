@@ -4,12 +4,16 @@ Instrukcja dla analizy sprzedaży gier wideo
 
 Użyte biblioteki R
 
-
 ggplot2
+
 dplyr
+
 forcats #uporządkowanie wartości w wykresach
+
 tidyr
+
 ggpubr
+
 
 Opis projektu i przegląd danych
 
