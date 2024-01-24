@@ -35,16 +35,27 @@ library(ggpubr)
 
 
 ##### KOLUMNY
+
 -Rank - pozycja w rankingu sprzedazy
+
 -Name - nazwa gry
+
 -Platform - platforma, na ktora zostala wydana gra
+
 -Year - rok wydania gry
+
 -Genre - gatunek gry
+
 -Publisher - wydawca gry
+
 -NA_Sales - sprzedaz w Ameryce Polnocnej (w mln USD)
+
 -EU_Sales - sprzedaz w Europie (w mln USD)
+
 -JP_Sales - sprzedaz w Japonii (w mln USD)
+
 -Other_Sales - sprzedaz na pozostalych rynkach (w mln USD)
+
 -Global_Sales - sprzedaz globalna (w mln USD)
 
 
