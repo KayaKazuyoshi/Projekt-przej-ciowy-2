@@ -1,0 +1,572 @@
+#biblioteki
+library(ggplot2)
+library(dplyr)
+library(forcats) #ordering values in plots
+
+#install.packages("dplyr")           # Install dplyr package
+library("dplyr")
+
+#install.packages("plyr")            # Install & load plyr package
+#library("plyr")
+
+detach(package:plyr)
+
+library(tidyr)
+
+#install.packages("ggpubr")
+library(ggpubr)
+
+#------------------------------------------------------------------------------
+#Opis projektu i danych
+#------------------------------------------------------------------------------
+
+# DANE - zbior danych dotyczacych sprzedazy gier wideo w latach 1980-2020,
+#16598 pozycji
+
+#KOLUMNY
+#Rank - pozycja w rankingu sprzedazy
+#Name - nazwa gry
+#Platform - platforma, na ktora zostala wydana gra
+#Year - rok wydania gry
+#Genre - gatunek gry
+#Publisher - wydawca gry
+#NA_Sales - sprzedaz w Ameryce Polnocnej (w mln USD)
+#EU_Sales - sprzedaz w Europie (w mln USD)
+#JP_Sales - sprzedaz w Japonii (w mln USD)
+#Other_Sales - sprzedaz na pozostalych rynkach (w mln USD)
+#Global_Sales - sprzedaz globalna (w mln USD)
+
+#CEL ANALIZY
+#porownanie sprzedazy gier z podzialem na rynki, platformy, gatunki i wydawcow
+#przedstawienie wynikow w postaci wizualizacji
+
+#------------------------------------------------------------------------------
+#Wczytanie danych, statystyki i operacje na danych
+#------------------------------------------------------------------------------
+
+#wczytanie danych i podsumowania
+games<-read.csv("vgsales.csv")
+View(games)
+summary(games)
+str(games)
+
+#year ma typ character -> zmiana na int
+games$Year<-as.integer(games$Year)
+
+#sprawdzic nulle w year (i innych)
+is.null(games$Year)
+unique(games$Year) #pojawia sie NA
+any(is.na(games$Year))
+sum(is.na(games$Year)) #271 wartosci NA
+
+na_values<-games[!complete.cases(games), ]
+View(na_values)
+
+#sum(na_values$Global_Sales)
+#count(na_values[(na_values$Platform=="PC"),]) #17 gier
+#pc_na_values<-na_values[(na_values$Platform=="PC"),]
+#sum(pc_na_values$Global_Sales) #3.77 mln USD
+
+
+#usuniecie wierszy z NA
+games<-games[complete.cases(games), ]
+
+
+#dodanie kolumny z dekada
+games<-games%>%
+  mutate(Decade = if_else(Year >= 2000,
+                          paste0(Year  %/% 10 * 10),
+                          paste0(1900 + (Year - 1900) %/% 10 * 10)))
+
+#usuniecie danych z obecnej dekady (zeby nie zaburzyc analizy - obecna dekada sie jeszcze nie skonczyla
+#i do konca jej trwania wydanych zostanie jeszcze wiele gier) = usuniecie 1 gry
+games<-games[!(games$Decade=="2020"),] 
+
+unique(games$Decade)
+
+#dodanie przedzialow lat (przed 2000 i po)
+games<-games%>%
+  mutate(Years_range = if_else(Year >= 2000,
+                          "2000-2019",
+                          "1980-1999"))
+
+#------------------------------------------------------------------------------
+#ANALIZY
+#------------------------------------------------------------------------------
+
+#1.Sprzedaz gier na poszczegolnych rynkach (USA, Europa, Japonia i inne) i sprzedaz globalna
+
+#suma sprzedazy na roznych rynkach
+sales_worldwide<-data.frame(sales = c(sum(games$NA_Sales), sum(games$EU_Sales), sum(games$JP_Sales), sum(games$Other_Sales)),
+                            percentage_of_global_sales = c(sum(games$NA_Sales)/sum(games$Global_Sales), sum(games$EU_Sales)/sum(games$Global_Sales),
+                                                           sum(games$JP_Sales)/sum(games$Global_Sales),sum(games$Other_Sales)/sum(games$Global_Sales)))
+row.names(sales_worldwide)<-c("NA_Sales", "EU_Sales", "JP_Sales", "Other_Sales")
+
+
+#funkcja zamieniajaca liczbe na procenty
+percent <- function(x, digits = 2, format = "f", ...) {
+  paste0(formatC(100 * x, format = format, digits = digits, ...), "%")
+}
+
+sales_worldwide$perc<-percent(sales_worldwide$percentage_of_global_sales)
+
+
+sales_worldwide
+
+#wartosc sprzedazy gier na swiecie z podzialem na rynki
+sales_worldwide_plot<-ggplot(data = sales_worldwide, aes(x=row.names(sales_worldwide), y=sales)) + 
+  geom_bar(stat = "identity", fill="darkblue") +
+  ggtitle("Worldwide sales (in mln USD)") +
+  xlab("markets") +
+  geom_text(aes(label = sales), vjust = 1.5, colour = "white")
+
+sales_worldwide_plot
+
+#wartosc sprzedazy na poszczegolnych rynkach w procentach:
+global_sales_pie<-ggplot(sales_worldwide, aes(x = "", y = percentage_of_global_sales, fill = row.names(sales_worldwide))) +
+  geom_col() +
+  ggtitle("Percentage of global sales by markets") +
+  geom_text(aes(label = perc),
+            position = position_stack(vjust = 0.5), size=4) +
+  scale_fill_discrete(name = "Markets") +
+  coord_polar(theta = "y")
+
+global_sales_pie
+
+#OBSERWACJE:
+#sprzedaz w Ameryce Polnocnej wynosila prawie 50% sprzedazy swiatowej
+
+
+#TESTY
+
+#1 czy srednia wartosc sprzedazy na rynkach NA i EU jest rozna?
+t.test(games$NA_Sales, games$EU_Sales, alternative="two.sided")
+
+#p-value < 5% -> odrzucenie h0 -> srednia sprzedaz jest rozna
+
+#2 czy srednia wartosc sprzedazy na rynkach NA i JP jest rozna?
+t.test(games$NA_Sales, games$JP_Sales, alternative="two.sided")
+
+#p-value < 5% -> odrzucenie h0 -> srednia sprzedaz jest rozna
+
+#3 czy średnia wartosc sprzedazy na rynkach EU i JP jest rozna?
+t.test(games$EU_Sales, games$JP_Sales, alternative="two.sided")
+
+#p-value < 5% -> odrzucenie h0 -> srednia sprzedaz jest rozna
+
+
+#------------------------------------------------------------------------------
+#------------------------------------------------------------------------------
+
+#2.Sprzedaz gier na przestrzeni lat
+
+#globalna wartosc sprzedazy wg dekady
+decade_global_sales <- games %>%
+  group_by(Decade) %>%
+  summarise(global_sales=sum(Global_Sales))
+
+decade_global_sales
+
+
+
+decade_global_sales_plot<-ggplot(data = decade_global_sales, aes(x=Decade, y=global_sales)) + 
+  geom_bar(stat = "identity", fill="darkblue") +
+  ggtitle("Global sales by decade (in mln USD)") +
+  geom_text(aes(label = global_sales), vjust = 1.5, colour = "white")
+
+decade_global_sales_plot
+
+
+#wartosc sprzedazy na roznych rynkach wg dekady
+decade_world_widesales <- games %>%
+  group_by(Decade) %>%
+  summarise(NA_Sales=sum(NA_Sales),EU_Sales=sum(EU_Sales),JP_Sales=sum(JP_Sales),Other_Sales=sum(Other_Sales))
+
+decade_world_widesales
+
+dww_to_plot<-decade_world_widesales %>%
+  pivot_longer(
+    cols = ends_with("Sales"),
+    names_to = "Markets",
+    values_to = "Sales",
+  )
+
+decade_world_widesales_plot<-ggplot(data = dww_to_plot, aes(x=Decade, y=Sales, fill=Markets)) + 
+  geom_bar(stat = "identity", position=position_dodge()) +
+  ggtitle("Worldwide sales by decade (in mln USD)") +
+  geom_text(aes(label = Sales), vjust=-0.5, position = position_dodge(0.9), colour = "black",  size=3)
+
+decade_world_widesales_plot
+
+#OBSERWACJE
+#najwieksza wartosc sprzedazy (we wszystkich dekadach) -> rynek Ameryki Polnocnej
+#najmniejsza wartosc sprzedazy -> pozostale rynki
+#od lat 80 do 2000 wartosci sprzedazy na wszystkich rynkach rosly, w nastepnej dekadzie zmalaly
+#wartosc sprzedazy na rynku NA od lat 2000 do konca 2019 zmalala o ponad polowe
+
+
+#------------------------------------------------------------------------------
+#------------------------------------------------------------------------------
+
+#3.Sprzedaz gier na roznych platformach
+
+total_sales<-sum(games$Global_Sales)
+
+#globalna wartosc sprzedazy wg platformy (+liczba wydanych tytulow)
+platform_global_sales <- games %>%
+  group_by(Platform) %>%
+  summarise(count=n(), global_sales=sum(Global_Sales), total_sales_percent = percent(sum(Global_Sales)/total_sales)) %>%
+  arrange(desc(global_sales))
+
+#usuniecie platform ze sprzedaza globalna < 2 mln usd -> dla bardziej przejrzysttego wykresu
+platform_global_sales<-platform_global_sales[!(platform_global_sales$global_sales<2),]
+
+
+platform_global_sales
+
+#top 10 platform z najwieksza sprzedaza na rynku NA
+platform_na_sales<- games %>%
+  group_by(Platform) %>%
+  summarise(NA_Sales=sum(NA_Sales), global_sales_percent = percent(sum(NA_Sales)/sum(Global_Sales))) %>%
+  arrange(desc(NA_Sales)) %>%
+  slice(1:10) 
+
+platform_na_sales
+
+#top 10 platform z najwieksza sprzedaza na rynku EU
+platform_eu_sales<- games %>%
+  group_by(Platform) %>%
+  summarise(EU_Sales=sum(EU_Sales), global_sales_percent = percent(sum(EU_Sales)/sum(Global_Sales))) %>%
+  arrange(desc(EU_Sales)) %>%
+  slice(1:10) 
+
+platform_eu_sales
+
+#top 10 platform z najwieksza sprzedaza na rynku JP
+platform_jp_sales<- games %>%
+  group_by(Platform) %>%
+  summarise(JP_Sales=sum(JP_Sales), global_sales_percent = percent(sum(JP_Sales)/sum(Global_Sales))) %>%
+  arrange(desc(JP_Sales)) %>%
+  slice(1:10) 
+
+platform_jp_sales
+
+#top 10 platform z najwieksza sprzedaza na innych rynkach
+platform_other_sales<- games %>%
+  group_by(Platform) %>%
+  summarise(Other_Sales=sum(Other_Sales), global_sales_percent = percent(sum(Other_Sales)/sum(Global_Sales))) %>%
+  arrange(desc(Other_Sales)) %>%
+  slice(1:10) 
+
+platform_other_sales
+
+
+#wykresy
+
+platform_global_sales_plot<-ggplot(data = platform_global_sales, aes(x=reorder(Platform, -global_sales), y=global_sales)) + 
+  geom_bar(stat = "identity", fill='lightblue') +
+  ggtitle("Global sales by platform with percentage of total sales") +
+  xlab("markets") +
+  geom_text(aes(label = paste(global_sales,"\n",total_sales_percent)), vjust = 1.5, colour = "black")
+
+platform_na_sales_plot<-ggplot(data = platform_na_sales, aes(x=reorder(Platform, -NA_Sales), y=NA_Sales)) + 
+  geom_bar(stat = "identity", fill='darkblue') +
+  ggtitle("Top 10 sales on NA market by platform with percentage of global sales") +
+  xlab("markets") +
+  geom_text(aes(label = paste(NA_Sales,"\n",global_sales_percent)), vjust = -0.3, colour = "black") +
+  ylim(0, 700) #dodanie tej samej skali na osi y
+
+platform_eu_sales_plot<-ggplot(data = platform_eu_sales, aes(x=reorder(Platform, -EU_Sales), y=EU_Sales)) + 
+  geom_bar(stat = "identity", fill='darkblue') +
+  ggtitle("Top 10 sales on EU market by platform with percentage of global sales") +
+  xlab("markets") +
+  geom_text(aes(label = paste(EU_Sales,"\n",global_sales_percent)), vjust = -0.3, colour = "black")+
+  ylim(0, 700)
+
+platform_jp_sales_plot<-ggplot(data = platform_jp_sales, aes(x=reorder(Platform, -JP_Sales), y=JP_Sales)) + 
+  geom_bar(stat = "identity", fill='darkblue') +
+  ggtitle("Top 10 sales on JP market by platform with percentage of global sales") +
+  xlab("markets") +
+  geom_text(aes(label = paste(JP_Sales,"\n",global_sales_percent)), vjust = -0.3, colour = "black")+
+  ylim(0, 700)
+
+platform_other_sales_plot<-ggplot(data = platform_other_sales, aes(x=reorder(Platform, -Other_Sales), y=Other_Sales)) + 
+  geom_bar(stat = "identity", fill='darkblue') +
+  ggtitle("Top 10 sales on other markets by platform with percentage of global sales") +
+  xlab("markets") +
+  geom_text(aes(label = paste(Other_Sales,"\n",global_sales_percent)), vjust = -0.3, colour = "black")+
+  ylim(0, 700)
+
+
+platform_global_sales_plot
+
+ggarrange(platform_na_sales_plot, platform_eu_sales_plot, platform_jp_sales_plot, platform_other_sales_plot)
+
+#OBSERWACJE
+#Japonia -> konsola SNES (powstala w latach 90) ponad 50% sprzedazy w samej Japonii
+#dominacja sprzedazy gier na konsole (PC w top10 tylko na rynku europejskim i na innych rynkach)
+#rynek amerykanski -> 1 miejsce dla XBOX360 (produkcja Microsoftu - firma amerykanska)
+#na rynku japonskim dominacja producentow azjatyckich (Nintendo, Sony)
+
+
+#TEST
+#test - czy proporcje roznych gatunkow roznia sie na roznych platrofmach?
+#test chi2 - gatunek i platforma (categorical + categorical)
+#h0: nie roznia sie
+#h1: roznia sie (proporcje gatunkow gier zaleza od platofmy na ktorej wystepuja)
+#poziom ufnosci: 5% (0,05)
+#test: chi2
+
+table(games$Platform, games$Genre)
+
+chisq.test(games$Platform, games$Genre, correct=FALSE)
+
+#p-value < 5% -> odrzucenie h0 -> proporcje roznych gatunkow gier zaleza od platform
+
+#------------------------------------------------------------------------------
+#------------------------------------------------------------------------------
+
+#4.Jaki gatunek gier zarobł najwiecej i jakiego gatunku gier wydano najwiecej
+
+
+#Gatunek + liczba wydanych gier + wartosc sprzedazy
+genre_sales <- games %>%
+  group_by(Genre) %>%
+  summarise(count=n(), global_sales=sum(Global_Sales)) %>%
+  arrange(desc(global_sales))
+
+genre_sales
+
+genre_sales_plot <- ggplot(genre_sales) +
+  geom_bar(aes(Genre, count), stat = "identity") +
+  geom_line(aes(Genre, global_sales, group = 1), col = "#1b98e0", lwd = 2) +
+  scale_y_continuous(sec.axis = sec_axis(~ . / max(genre_sales$global_sales))) +
+  ggtitle("Value of global sales (in mln USD) and a number of games published by genre")
+
+genre_sales_plot
+
+#wnioski: niektore gatunki gier mimo wydania wiekszej liczby tytulow osiagaja mniejsze zyski
+#np. wydano wiecej tytulow gier z gatunku "Adventure" niz "Racing", ale zyski ze sprzedazy byly duzo mniejsze
+
+
+
+genre_sales$mean_diff <- round((genre_sales$global_sales - mean(genre_sales$global_sales))/sd(genre_sales$global_sales), 2)  
+genre_sales$type <- ifelse(genre_sales$mean_diff < 0, "below", "above") 
+genre_sales$Genre <- factor(genre_sales$Genre, levels = genre_sales$Genre)
+
+mean(genre_sales$global_sales) #735.03
+t.test(genre_sales$global_sales, conf.level = 0.95) #735.0058
+
+#Globalna sprzedaz gier wg gatunku (podzial na sprzedaz ponizej/powyzej sredniej sprzedazy)
+genre_global_sales_plot<-ggplot(genre_sales, aes(x=Genre, y=global_sales, label=global_sales)) + 
+  geom_bar(stat='identity', aes(fill=type), width=.5)  +
+  geom_hline(yintercept = mean(genre_sales$global_sales), linetype="dotted", 
+               color = "black", size=0.8) +
+  annotate("text", x=11, y=850, label="Mean = 735", size=3)+
+  scale_fill_manual(labels = c("Above Average", "Below Average"), 
+                    values = c("above"="lightgreen", "below"="red")) + 
+  ggtitle("Worldwide sales by genre (in mln USD)") + 
+  coord_flip() +
+  geom_text(aes(label = global_sales), vjust = 0.4, colour = "black")
+
+genre_global_sales_plot
+
+
+#OBSERWACJE
+
+#gatunki ze sprzedaza? ponizej sredniej sprzedazy globalnej:
+#Strategy, Adventure, Puzzle, Siimulation, Fighting, Racing
+
+#gatunki ze sprzedaza powyzej sredniej sprzedazy globalnej:
+#Misc, Platform, Role-Playing, Shooter, Sports, Action
+
+
+#TEST
+#czy wartosc sprzedazy gier zalezy od liczby wydanych tytulow gier (w przypadku poszczegolnych gatunkow gier)?
+#test normalnosci
+shapiro.test(genre_sales$count) #p_value < 5% -> rozklad normalny
+shapiro.test(genre_sales$global_sales) #p_value > 5% -> brak rozkladu normalnego
+
+##korelacja spearmana (dla zmiennych z rozkladem normalnym i bez)
+
+ggplot(genre_sales, aes(x=count, y=global_sales)) + 
+  geom_point(color='#2980B9', size = 4) + 
+  geom_smooth(method=lm, se=FALSE, fullrange=TRUE, color='#2C3E50')
+
+cor.test(x=genre_sales$count, y=genre_sales$global_sales, method = 'spearman')
+
+#p-value < 5%
+#rho = 0.8042 -> silna korelacja dodatnia
+
+#Wartosc sprzedanych gier zalezy od liczby wydanych tytulow gier
+
+
+#------------------------------------------------------------------------------
+#------------------------------------------------------------------------------
+
+#5.Wartosc sprzedazy gier i ilosci wydanych tytuloww wedlug producenta
+
+games$Publisher
+
+publisher_global_sales <- games %>%
+  group_by(Publisher) %>%
+  summarise(count=n(), global_sales=sum(Global_Sales), total_sales_percent = percent(sum(Global_Sales)/total_sales)) %>%
+  arrange(desc(global_sales))
+
+publisher_global_sales
+
+publishers_sliced <- publisher_global_sales %>%
+  slice(1:10)
+
+
+publisher_global_sales_plot1<-ggplot(publishers_sliced) +
+  geom_bar(aes(Publisher, count), stat = "identity") +
+  geom_line(aes(Publisher, global_sales, group = 1), col = "#1b98e0", lwd = 2) +
+  scale_y_continuous(sec.axis = sec_axis(~ . / max(publisher_global_sales$global_sales))) +
+  ggtitle("Value of global sales (in mln USD) and a number of games published by publishers")
+
+publishers_sliced2 <- publisher_global_sales %>%
+  slice(1:20)
+
+
+#wydawcy podzieleni na rynki
+#top 20 wydawcow z najwieksza sprzedaza na rynku NA
+publisher_na_sales<- games %>%
+  group_by(Publisher) %>%
+  summarise(NA_Sales=sum(NA_Sales), global_sales_percent = percent(sum(NA_Sales)/sum(Global_Sales))) %>%
+  arrange(desc(NA_Sales)) %>%
+  slice(1:20) 
+
+#top 20 wydawcow z najwieksza sprzedaza na rynku EU
+publisher_eu_sales<- games %>%
+  group_by(Publisher) %>%
+  summarise(EU_Sales=sum(EU_Sales), global_sales_percent = percent(sum(EU_Sales)/sum(Global_Sales))) %>%
+  arrange(desc(EU_Sales)) %>%
+  slice(1:20) 
+
+#top 20 wydawcow z najwieksza sprzedaza na rynku JP
+publisher_jp_sales<- games %>%
+  group_by(Publisher) %>%
+  summarise(JP_Sales=sum(JP_Sales), global_sales_percent = percent(sum(JP_Sales)/sum(Global_Sales))) %>%
+  arrange(desc(JP_Sales)) %>%
+  slice(1:20) 
+
+#top 20 wydawcow z najwieksza sprzedaza na innych rynkach
+publisher_other_sales<- games %>%
+  group_by(Publisher) %>%
+  summarise(Other_Sales=sum(Other_Sales), global_sales_percent = percent(sum(Other_Sales)/sum(Global_Sales))) %>%
+  arrange(desc(Other_Sales)) %>%
+  slice(1:20) 
+
+
+#wykresy
+
+publisher_global_sales_plot<-ggplot(publishers_sliced2, aes(x=reorder(Publisher, global_sales), y=global_sales, label=global_sales)) + 
+  geom_bar(stat='identity', aes(fill=Publisher), width=.5)  +
+  ggtitle("Global sales by publisher (in mln USD)") + 
+  coord_flip() +
+  geom_text(aes(label = global_sales), vjust = 0.4, colour = "black") +
+  theme(legend.position="none") +
+  xlab("Publisher")
+
+publisher_na_sales_plot<-ggplot(data = publisher_na_sales, aes(x=reorder(Publisher, NA_Sales), y=NA_Sales)) + 
+  geom_bar(stat = "identity", aes(fill=Publisher), width=.5) +
+  ggtitle("NA sales by publisher (in mln USD)") +
+  coord_flip() +
+  geom_text(aes(label = NA_Sales), vjust = 0.4, colour = "black") +
+  theme(legend.position="none") +
+  xlab("Publisher")
+
+publisher_eu_sales_plot<-ggplot(data = publisher_eu_sales, aes(x=reorder(Publisher, EU_Sales), y=EU_Sales)) + 
+  geom_bar(stat = "identity", aes(fill=Publisher), width=.5) +
+  ggtitle("EU sales by publisher (in mln USD)") +
+  coord_flip() +
+  geom_text(aes(label = EU_Sales), vjust = 0.4, colour = "black")+
+  theme(legend.position="none") +
+  xlab("Publisher")
+
+publisher_jp_sales_plot<-ggplot(data = publisher_jp_sales, aes(x=reorder(Publisher, JP_Sales), y=JP_Sales)) + 
+  geom_bar(stat = "identity", aes(fill=Publisher), width=.5) +
+  ggtitle("JP sales by publisher (in mln USD)") +
+  coord_flip() +
+  geom_text(aes(label = JP_Sales), vjust = 0.4, colour = "black") +
+  theme(legend.position="none") +
+  xlab("Publisher")
+
+publisher_other_sales_plot<-ggplot(data = publisher_other_sales, aes(x=reorder(Publisher, Other_Sales), y=Other_Sales)) + 
+  geom_bar(stat = "identity", aes(fill=Publisher), width=.5) +
+  ggtitle("Other sales by publisher (in mln USD)") +
+  coord_flip() +
+  geom_text(aes(label = Other_Sales), vjust = 0.4, colour = "black") +
+  theme(legend.position="none") +
+  xlab("Publisher")
+
+publisher_global_sales_plot
+publisher_global_sales_plot1
+
+ggarrange(publisher_na_sales_plot, publisher_eu_sales_plot, publisher_jp_sales_plot, publisher_other_sales_plot)
+
+
+#wydawcy podzieleni na lata
+
+retro_games<-games[(games$Years_range=="1980-1999"),] 
+games_2000<-games[(games$Years_range=="2000-2019"),]
+
+retro_games_total_sales<-sum(retro_games$Global_Sales) #1655.49 mln USD
+games_2000_total_sales<-sum(games_2000$Global_Sales) #7163.58 mln USD
+
+#total sales difference
+percent(games_2000_total_sales/retro_games_total_sales) #wzrost o 433%
+
+publisher_retro_games<- retro_games %>%
+  group_by(Publisher) %>%
+  summarise(Global_Sales=sum(Global_Sales), global_sales_percent = percent(sum(Global_Sales)/retro_games_total_sales)) %>%
+  arrange(desc(Global_Sales)) %>%
+  slice(1:10) 
+
+publisher_games_2000<- games_2000 %>%
+  group_by(Publisher) %>%
+  summarise(Global_Sales=sum(Global_Sales), global_sales_percent = percent(sum(Global_Sales)/games_2000_total_sales)) %>%
+  arrange(desc(Global_Sales)) %>%
+  slice(1:10) 
+
+#wykresy
+
+publisher_retro_games_plot<-ggplot(data = publisher_retro_games, aes(x=reorder(Publisher, -Global_Sales), y=Global_Sales)) + 
+  geom_bar(stat = "identity") +
+  ggtitle("Retro games (1980-1999) sales by publisher (in mln USD)") +
+  xlab("Publishers") +
+  geom_text(aes(label = paste(Global_Sales,"\n",global_sales_percent)), vjust = -0.3, colour = "black")+
+  ylim(0, 1200)
+
+publisher_retro_games_plot
+
+publisher_games_2000_plot<-ggplot(data = publisher_games_2000, aes(x=reorder(Publisher, -Global_Sales), y=Global_Sales)) + 
+  geom_bar(stat = "identity") +
+  ggtitle("Games after 2000 sales by publisher (in mln USD)") +
+  xlab("Publishers") +
+  geom_text(aes(label = paste(Global_Sales,"\n",global_sales_percent)), vjust = -0.3, colour = "black")+
+  ylim(0, 1200)
+
+publisher_games_2000_plot
+
+
+#OBSERWACJE
+#zdecydowana dominacja Nindento w sprzedazy globalnej (1784 mln USD - 20% wartosci sprzedazy globalnej),
+#za nim Electronic Arts (1093 mln USD - 12,40%)
+#niektorzy producenci mimo wydania wiekszej liczby tytulow osiagneli mniejsze zyski
+#np. Nintendo -> 696 wydanych tytulow, zarobki = 1784 mln USD,
+#Ubisoft -> 917 wydanych tytulow -> zarobki = 474 mln USD
+
+#lata 1980-1999 i po 2000 roku:
+#spadek dominacji Nintendo -> wzrost zyskow (599 mln USD -> 1184 mln USD),
+#ale spadek udzialow na rynku (36% -> 16,5%)
+#wyrownanie proporcji udzialow na rynku gier po 2000 roku
+
+
+#TESTY
+#czy srednia sprzedaż w latach 1980-1999 różniła się od średniej sprzedaży w latach 2000-2019?
+t.test(retro_games$Global_Sales, games_2000$Global_Sales, alternative="two.sided")
+
+#p-value < 5% -> odrzucenie h0 -> średnie są różne
+
