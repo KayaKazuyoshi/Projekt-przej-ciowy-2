@@ -52,49 +52,63 @@ Cele analizy:
 
 
 Ładowanie danych i podsumowanie
-gry <- read.csv("vgsales.csv")
-summary(gry)
-str(gry)
 
 Obsługa brakujących wartości
-gry <- gry[complete.cases(gry),]
 
 Dodanie kolumny Dekada
-gry <- gry %>%
-  mutate(Dekada = if_else(Rok >= 2000,
-                          paste0(Rok  %/% 10 * 10),
-                          paste0(1900 + (Rok - 1900) %/% 10 * 10)))
 
 Usunięcie danych z obecnej dekady
-gry <- gry[!(gry$Dekada=="2020"),]
 
 Dodanie zakresu lat
-gry <- gry %>%
-  mutate(Zakres_lat = if_else(Rok >= 2000,
-                               "2000-2019",
-                               "1980-1999"))
+
 Analizy
 
 1. Sprzedaż według rynków
+
+
  Obliczanie sprzedaży na całym świecie
+ 
  Tworzenie wykresu sprzedaży na całym świecie
+ 
 2. Sprzedaż według dekad
+
+   
  Sprzedaż globalna według dekady
+ 
  Tworzenie wykresu sprzedaży globalnej według dekady
-3. Sprzedaż według Platformy
+ 
+4. Sprzedaż według Platformy
+
+   
  Sprzedaż globalna według platformy
+ 
  Usuwanie platform o globalnej sprzedaży < 2 mln USD
+ 
  Tworzenie wykresu sprzedaży globalnej według platformy
-4. Kategorie gier w zależności od sprzedaży globalnej
+ 
+5. Kategorie gier w zależności od sprzedaży globalnej
+
+   
  Sprzedaż globalna według kategorii (gatunku) gier
+ 
  Tworzenie wykresu sprzedaży globalnej według gatunku gier
-5. Najlepsi wydawcy (pod względem sprzedaży globalnej)
+ 
+6. Najlepsi wydawcy (pod względem sprzedaży globalnej)
+
+   
  Sprzedaż globalna według wydawcy
+ 
  Usuwanie wydawców o globalnej sprzedaży < 5 mln USD
+ 
  Tworzenie wykresu sprzedaży globalnej według wydawcy
-6. Korelacja między zmiennymi (sprzedaż w różnych regionach)
+ 
+7. Korelacja między zmiennymi (sprzedaż w różnych regionach)
+
+   
  Macierz korelacji
+ 
  Tworzenie wykresu macierzy korelacji
 
 Wnioski
+
 Oceniając wyniki analizy, można wyciągnąć różne wnioski dotyczące trendów sprzedaży gier wideo. Wykresy i statystyki pozwalają zrozumieć, jak różne czynniki wpływają na sprzedaż, takie jak regiony, platformy, gatunki i wydawcy. Przeanalizowanie korelacji między sprzedażą w różnych regionach również pomaga zidentyfikować, czy sukces w jednym regionie przekłada się na sukces w innych obszarach.
