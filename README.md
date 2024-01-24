@@ -4,6 +4,7 @@ Instrukcja dla analizy sprzedaży gier wideo
 
 Użyte biblioteki R
 
+
 library(ggplot2)
 library(dplyr)
 library(forcats) #uporządkowanie wartości w wykresach
