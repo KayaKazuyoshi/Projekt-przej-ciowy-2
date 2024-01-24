@@ -5,11 +5,11 @@ Instrukcja dla analizy sprzedaży gier wideo
 Użyte biblioteki R
 
 
-library(ggplot2)
-library(dplyr)
-library(forcats) #uporządkowanie wartości w wykresach
-library(tidyr)
-library(ggpubr)
+ggplot2
+dplyr
+forcats #uporządkowanie wartości w wykresach
+tidyr
+ggpubr
 
 Opis projektu i przegląd danych
 
