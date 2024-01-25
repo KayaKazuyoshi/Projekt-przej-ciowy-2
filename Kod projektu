@@ -562,11 +562,3 @@ publisher_games_2000_plot
 #spadek dominacji Nintendo -> wzrost zyskow (599 mln USD -> 1184 mln USD),
 #ale spadek udzialow na rynku (36% -> 16,5%)
 #wyrownanie proporcji udzialow na rynku gier po 2000 roku
-
-
-#TESTY
-#czy srednia sprzedaż w latach 1980-1999 różniła się od średniej sprzedaży w latach 2000-2019?
-t.test(retro_games$Global_Sales, games_2000$Global_Sales, alternative="two.sided")
-
-#p-value < 5% -> odrzucenie h0 -> średnie są różne
-
